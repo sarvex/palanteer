@@ -28,14 +28,35 @@ withStackTrace = False
 # Deduce some parameters
 np = os.path.normpath
 r = "../"
-src_list = [r+"base/bsString.cpp", r+"base/bsOsLinux.cpp", r+"base/bsOsWindows.cpp"] + \
-    glob.glob(r+"common/*.cpp") + glob.glob("palanteer_scripting/_cextension/*.cpp")
+src_list = (
+    [
+        f"{r}base/bsString.cpp",
+        f"{r}base/bsOsLinux.cpp",
+        f"{r}base/bsOsWindows.cpp",
+    ]
+    + glob.glob(f"{r}common/*.cpp")
+) + glob.glob("palanteer_scripting/_cextension/*.cpp")
 extra_link_args         = []
-extra_compilation_flags = ["-DUSE_PL=1", "-DPL_EXPORT=1", "-DBS_NO_GRAPHIC"] #, "-DPL_NOCONTROL=1", "-DPL_NOEVENT=1",
-extra_compilation_flags.extend(["-I",  np(r+"../c++"), "-I", np(r+"base"), "-I", np(r+"common")])
-extra_compilation_flags.extend(["-I", np(r+"external/zstd"), "-I", np(r+"external/zstd/common"), "-I", np(r+"external/zstd/compress"), "-I", np(r+"external/zstd/decompress")])
+extra_compilation_flags = [
+    "-DUSE_PL=1",
+    "-DPL_EXPORT=1",
+    "-DBS_NO_GRAPHIC",
+    *["-I", np(f"{r}../c++"), "-I", np(f"{r}base"), "-I", np(f"{r}common")],
+]
+extra_compilation_flags.extend(
+    [
+        "-I",
+        np(f"{r}external/zstd"),
+        "-I",
+        np(f"{r}external/zstd/common"),
+        "-I",
+        np(f"{r}external/zstd/compress"),
+        "-I",
+        np(f"{r}external/zstd/decompress"),
+    ]
+)
 for folder in ["common", "compress", "decompress"]:
-    src_list.extend(glob.glob(r+"external/zstd/%s/*.c" % folder))
+    src_list.extend(glob.glob(f"{r}external/zstd/{folder}/*.c"))
 
 if isDevMode:
     # Developement mode (fast build & debug code)

@@ -78,7 +78,7 @@ class RandomLCM():
 
 class GroupSynchro():
     def __init__(self, name):
-        self.name    = "%ssynchro" % name.replace("/", " ")
+        self.name = f'{name.replace("/", " ")}synchro'
         self.mx      = threading.Lock()
         self.cv      = threading.Condition(self.mx)
         self.message = None
@@ -180,7 +180,7 @@ def otherSubTask(taskNbr, iterNbr):
 
     plBegin("doSomethingUseful")
     dummyValue += busyWait(globalRandomGenerator.get(100, 500))
-    for i in range((7*taskNbr*iterNbr)%3):
+    for _ in range((7*taskNbr*iterNbr)%3):
         plBegin("Partial work")
         dummyValue += busyWait(globalRandomGenerator.get(100, 500))
         plEnd("Partial work")
@@ -237,10 +237,8 @@ def controlTask(synchro, durationMultipler):
         if globalRandomGenerator.get(0, 100)>=45:
             # Allocate a new list
             allocationList.append( [ 1 ] * globalRandomGenerator.get(2000, 10000))
-        else:
-            # Deallocate
-            if allocationList:
-                del allocationList[0]
+        elif allocationList:
+            del allocationList[0]
 
         # Wait a bit
         time.sleep(0.001*globalRandomGenerator.get(20, 60))
@@ -385,20 +383,28 @@ def collectInterestingData(mode, buildName, durationMultiplier, serverPort, with
     threadGroupNames = [ "", "Workers/", "Real time/", "Database Cluster/", "Helpers/", "Engine/", "Compute Grid/", "Hub/", "Idlers/" ]
 
 
-    crashThreadGroupNbr = None if crashKind==None else int(time.time())%threadGroupQty  # Random selection of the thread which shall crash
+    crashThreadGroupNbr = (
+        None if crashKind is None else int(time.time()) % threadGroupQty
+    )
     controlThreadList = []
     for threadGroupNbr in range(threadGroupQty):
         groupName    = threadGroupNames[threadGroupNbr]
         groupSynchro = GroupSynchro(groupName)
-        t1 = threading.Thread(name="%sControl" % groupName, target=lambda grp=groupSynchro, durMult=durationMultiplier:
-                              controlTask(grp, durMult))
-        t2 = threading.Thread(name="%sAssociate" % groupName, target=lambda grp=groupSynchro, ck=crashKind if crashThreadGroupNbr==threadGroupNbr else -1:
-                              associatedTask(grp, ck))
+        t1 = threading.Thread(
+            name=f"{groupName}Control",
+            target=lambda grp=groupSynchro, durMult=durationMultiplier: controlTask(
+                grp, durMult
+            ),
+        )
+        t2 = threading.Thread(
+            name=f"{groupName}Associate",
+            target=lambda grp=groupSynchro, ck=crashKind if crashThreadGroupNbr == threadGroupNbr else -1: associatedTask(
+                grp, ck
+            ),
+        )
         t1.start()
         t2.start()
-        controlThreadList.append(t1)
-        controlThreadList.append(t2)
-
+        controlThreadList.extend((t1, t2))
     # Wait for threads completion
     for t in controlThreadList:
         t.join()  # Join order does not matter
@@ -484,9 +490,15 @@ def displayUsage():
     print("    '--port <port>': Use the provided socket port (default is 59059)")
     print("")
     print("To start, you can try this (and look at the testProgram.cpp code too):")
-    print("  %s perf    -f   (no need for palanteer, events are stored in the file example_record.plt) " % sys.argv[0])
-    print("  %s collect -c   (no need for palanteer, events are displayed on console) " % sys.argv[0])
-    print("  %s collect      (requires the prior launch of 'palanteer' viewer) " % sys.argv[0])
+    print(
+        f"  {sys.argv[0]} perf    -f   (no need for palanteer, events are stored in the file example_record.plt) "
+    )
+    print(
+        f"  {sys.argv[0]} collect -c   (no need for palanteer, events are displayed on console) "
+    )
+    print(
+        f"  {sys.argv[0]} collect      (requires the prior launch of 'palanteer' viewer) "
+    )
 
 
 def main():
@@ -510,13 +522,13 @@ def main():
     argCount = 2
     while not doDisplayUsage and argCount<len(sys.argv):
         w = sys.argv[argCount]
-        if   w in ["--n", "-n"]: mode = "inactive"
+        if w in ["--n", "-n"]: mode = "inactive"
         elif w in ["--f", "-f"]: mode = "file storage"
         elif w in ["--nc", "-nc"]: with_c_calls = False
         elif w in ["-b", "--b"] and argCount+1<len(sys.argv):
             buildName = sys.argv[argCount+1]
             argCount += 1
-            print("Build name is: %s" % buildName)
+            print(f"Build name is: {buildName}")
         elif w=="--port" and argCount+1<len(sys.argv):
             serverPort = int(sys.argv[argCount+1])
             argCount += 1
@@ -530,7 +542,7 @@ def main():
             argCount += 1
             print("Duration multiplier: %d" % durationMultiplier)
         else:
-            print("Error: unknown argument '%s'" % sys.argv[argCount])
+            print(f"Error: unknown argument '{sys.argv[argCount]}'")
             doDisplayUsage = True
         argCount += 1
 
@@ -542,7 +554,7 @@ def main():
     if doDisplayUsage:
         displayUsage()
         sys.exit(1)
-    print("Mode '%s'" % mode)
+    print(f"Mode '{mode}'")
 
     if doEstimateCost:
         # Estimate the cost of the logging

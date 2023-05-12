@@ -34,16 +34,15 @@ int main(int argc, char** argv)
 """
 
 def _evaluate_perf_program(eval_content, flags, loop=3):
-    LOG("Experiment with evaluation '%s' and flags '%s'" % (eval_content, " ".join(flags)))
+    LOG(
+        f"""Experiment with evaluation '{eval_content}' and flags '{" ".join(flags)}'"""
+    )
 
-    # Create the source file
-    fh = open("test_performance.cpp", "w")
-    fh.write(C_CODE % eval_content)
-    fh.close()
-
+    with open("test_performance.cpp", "w") as fh:
+        fh.write(C_CODE % eval_content)
     # Measure the build time
     build_time_sec = 1000.
-    for i in range(loop):
+    for _ in range(loop):
         start_sec = time.time()
         if sys.platform=="win32":
             run_cmd(["cl.exe", "test_performance.cpp", "-I", "..\\..", "/EHs", "/Fea.exe"] + flags)
@@ -60,7 +59,7 @@ def _evaluate_perf_program(eval_content, flags, loop=3):
     program_size = os.stat(prog_name).st_size
     # Measure the execution time
     exec_time_sec = 1000.
-    for i in range(loop):
+    for _ in range(loop):
         start_sec = time.time()
         run_cmd([prog_name, "14"])
         exec_time_sec = min(exec_time_sec, time.time()-start_sec)
@@ -96,7 +95,10 @@ def measure_event_size_and_timing():
 
     # Log the KPIs
     KPI("Compilation speed (-O2)", "%3d event/s" % (1024./(evtO_build_time_sec-refO_build_time_sec)))
-    KPI("Compilation speed (%s)" % debugOpt, "%3d event/s" % (1024./(evtg_build_time_sec-refg_build_time_sec)))
+    KPI(
+        f"Compilation speed ({debugOpt})",
+        "%3d event/s" % (1024.0 / (evtg_build_time_sec - refg_build_time_sec)),
+    )
     KPI("Event code size (-O2)", "%d bytes/event" % int((evtO_program_size-refO_program_size)/1024))
     KPI("Event logging runtime", "%.1f ns" % (1000000000./(1024*100000.)*(evtO_exec_time_sec-refO_exec_time_sec)))
 

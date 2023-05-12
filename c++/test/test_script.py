@@ -42,20 +42,35 @@ def test_locks():
 
     # Check the events for each lock
     for name, lockEvents in [ ("synchro", eventsPerLock["synchro"]), ("Workers synchro", eventsPerLock["Workers synchro"]) ]:
-        CHECK(lockEvents, "Some events for '%s' are received" % name)
-        CHECK((len(lockEvents)%3)==0, "The '%s' collected event quantity is a multiple of 3 (wait, ntf, use)" % name, len(lockEvents))
+        CHECK(lockEvents, f"Some events for '{name}' are received")
+        CHECK(
+            (len(lockEvents) % 3) == 0,
+            f"The '{name}' collected event quantity is a multiple of 3 (wait, ntf, use)",
+            len(lockEvents),
+        )
         i, stat_wakeup = 0, []
         while i<len(lockEvents):
             ntf, wait, use = lockEvents[i+0], lockEvents[i+1], lockEvents[i+2]
             if wait.kind=="lock notified":  # The order of the wait and notification may be reversed
                 wait, ntf = ntf, wait
-            CHECK(ntf.kind =="lock notified", "'%s' Lock notify received" % name)
-            CHECK(wait.kind=="lock wait" and wait.date_ns+wait.value>ntf.date_ns,  "'%s' Lock wait is ended just after the notification" % name)
-            CHECK(use.kind =="lock use"  and use.date_ns>=wait.date_ns+wait.value, "'%s' Lock is used just after the end of waiting" % name)
+            CHECK(ntf.kind =="lock notified", f"'{name}' Lock notify received")
+            CHECK(
+                wait.kind == "lock wait"
+                and wait.date_ns + wait.value > ntf.date_ns,
+                f"'{name}' Lock wait is ended just after the notification",
+            )
+            CHECK(
+                use.kind == "lock use"
+                and use.date_ns >= wait.date_ns + wait.value,
+                f"'{name}' Lock is used just after the end of waiting",
+            )
             stat_wakeup.append(wait.date_ns+wait.value - ntf.date_ns)
             i += 3
         stat_wakeup.sort()
-        LOG("Median thread wakeup timing for '%s' is %.1f µs" % (name, 0.001*stat_wakeup[int(len(stat_wakeup)/2)]))
+        LOG(
+            "Median thread wakeup timing for '%s' is %.1f µs"
+            % (name, 0.001 * stat_wakeup[len(stat_wakeup) // 2])
+        )
     process_stop()
 
 
@@ -80,7 +95,7 @@ def test_cli():
 
     data_configure_events([])
 
-    for i in range(10):
+    for _ in range(10):
         launch_testprogram(duration=100, pass_first_freeze_point=True)
 
         # All CLIs must be known thanks to the pass_first_freeze_point=True
@@ -146,7 +161,7 @@ def test_cli():
 def test_crash_info_collection():
     """Collection of crash information """
 
-    for i in range(3):
+    for _ in range(3):
         LOG("Configure crash spec with parent")
         data_configure_events(CRASH_SPEC)
         launch_testprogram("crash-segv", capture_output=(sys.platform!="win32"))  # Capturing and crashing does not work well on windows
@@ -229,7 +244,7 @@ def test_getters():
     clis = data_get_known_clis()
     CHECK(len(clis)==6, "6 CLIs shall be registered")
     for name, param_spec, description in clis:
-        LOG("  - %s  %s  : %s" % (name, param_spec, description))
+        LOG(f"  - {name}  {param_spec}  : {description}")
 
 
 @declare_test("script")
@@ -240,7 +255,7 @@ def test_debug_printers():
                        (debug_print_known_event_kinds, "Known event kinds"), (debug_print_known_clis, "Known CLIs")]:
         redirected_output = io.StringIO()
         func(redirected_output)
-        CHECK(redirected_output.getvalue(), "%s is non empty" % text)
+        CHECK(redirected_output.getvalue(), f"{text} is non empty")
         #print(redirected_output.getvalue())
         redirected_output.close()
     process_stop()

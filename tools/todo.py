@@ -42,7 +42,9 @@ import re
 # Constants
 # =========
 MARKER         = "@#"  # Feel free to choose your marker here
-MATCH_MARKER   = re.compile("(.*?)"+MARKER+"([a-z]+?)($|\s)(.*)", re.IGNORECASE)
+MATCH_MARKER = re.compile(
+    f"(.*?){MARKER}" + "([a-z]+?)($|\s)(.*)", re.IGNORECASE
+)
 MATCH_PRIORITY = re.compile("(.*?)(^|\s)P([\.\-0-9]+)($|\s)(.*)")
 MATCH_WORKLOAD = re.compile("(.*?)(^|\s)W([\.0-9]+)($|\s)(.*)")
 MATCH_CATEGORY = re.compile("(.*?)\s?\[(.*?)\]\s?(.*)")

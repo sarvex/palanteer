@@ -59,13 +59,12 @@ def computeHash(s, isHash64bits):
     if isHash64bits:
         h = 14695981039346656037
         for c in s: h = ((h^ord(c))*1099511628211)&0xFFFFFFFFFFFFFFFF
-        if h==0: h = 1 # Special case for our application (0 is reserved internally)
-        return h
     else:
         h = 2166136261
         for c in s: h = ((h^ord(c))*16777619)&0xFFFFFFFF
-        if h==0: h = 1 # Special case for our application (0 is reserved internally)
-        return h
+
+    if h==0: h = 1 # Special case for our application (0 is reserved internally)
+    return h
 
 
 def addString(s, hashToStringlkup, collisions, isHash64bits):
@@ -98,10 +97,10 @@ def main(argv):
             isHash64bits = False
         elif argv[i][0]=="-":
             doPrintUsage = True # Unknown option
-            print("Unknown option '%s'" % argv[i], file=sys.stderr)
+            print(f"Unknown option '{argv[i]}'", file=sys.stderr)
         else:
             fileNames.append(argv[i])
-        i = i+1
+        i += 1
     if not fileNames:
         doPrintUsage = True
     if doPrintUsage:
@@ -145,7 +144,7 @@ Note 2: If Palanteer commands are encapsulated inside custom macros in your code
                     l, lineNbr = None, lineNbr+1
                     continue
                 cmdType = PL_COMMANDS_TYPE.get(m.group(3), None)
-                if cmdType==None:
+                if cmdType is None:
                     l = m.group(4)
                     continue
                 isGroup = not not m.group(2)
@@ -202,8 +201,11 @@ Note 2: If Palanteer commands are encapsulated inside custom macros in your code
         sortedK = sorted(collisions.keys())
         for k in sortedK:
             cList = collisions[k]
-            print("COLLISION %016X %s" % (k, " ".join(["[%s]"%s for s in collisions[k]])), file=sys.stderr)
-
+            print(
+                "COLLISION %016X %s"
+                % (k, " ".join([f"[{s}]" for s in cList])),
+                file=sys.stderr,
+            )
     # Exit status
     sys.exit(1 if collisions else 0);
 

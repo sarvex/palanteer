@@ -98,9 +98,9 @@ class Evt:
     def __str__(self):
         s = ["%10.6f ms  kind=%-9s  thread=%s  path=%s" % (0.000001*self.date_ns, self.kind, self.thread, self.path)]
         if len(self.children)>0: s[-1] += "  children=%d" % len(self.children)
-        if len(str(self.value)): s[-1] += "  value=%s" % self.value
-        for c in self.children:
-            s.append("  | %s" % str(c))
+        if len(str(self.value)):
+            s[-1] += f"  value={self.value}"
+        s.extend(f"  | {str(c)}" for c in self.children)
         return "\n".join(s)
 
 
@@ -141,20 +141,21 @@ class EvtSpec:
         if type(events)==type(""):
             events = [events]
         for e in events:
-            ep = self._extractElemPath(e)
-            if not ep: continue
-            self.elemSpec.append(ep)
+            if ep := self._extractElemPath(e):
+                self.elemSpec.append(ep)
 
     def _extractElemPath(self, elemSpec):
-        if elemSpec==None:
+        if elemSpec is None:
             elemSpec = ""
         result = []
         for t in [t.strip() for t in elemSpec.split("/") if t]:
             doStore = False
-            if   t=="*":  doStore = True
-            elif t=="**": doStore = (result and result[-1]!="**")  # Super wildcard in front is useless, same for consecutive ones
-            elif t==".":  doStore = not result  # Must be in front to be meaningful
-            else:         doStore = True
+            if t == "**":
+                doStore = (result and result[-1]!="**")  # Super wildcard in front is useless, same for consecutive ones
+            elif t == ".":
+                doStore = not result  # Must be in front to be meaningful
+            else:
+                doStore = True
             if doStore: result.append(t)
 
         # Beginning with "./**" voids these 2 terms
@@ -384,7 +385,7 @@ def _default_log_func(level, msg):
     if level<default_log_min_level:
         return
 
-    date_str = datetime.datetime.today().strftime("%H:%M:%S.%f")[:-3]  # [:-3] to remove the microseconds
+    date_str = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
     level_str = "[%s]" % {0: "detail ", 1: "info   ", 2: "warning", 3: "error  "}.get(level, "unknown")
     print("%s %-9s %s" % (date_str, level_str, msg))
 
@@ -427,13 +428,12 @@ def set_external_strings(filename=None, lkup={}):
 
     _event_ctx.lkup_hash_to_external_string_value = {}
     if lkup:
-        _event_ctx.lkup_hash_to_external_string_value.update(lkup)
+        _event_ctx.lkup_hash_to_external_string_value |= lkup
     if filename:
         lkup = {}
         with open(filename, 'r') as fHandle:
-            for l in fHandle.readlines():
-                m = MATCH_EXT_STRING_LOOKUP.match(l)
-                if m:
+            for l in fHandle:
+                if m := MATCH_EXT_STRING_LOOKUP.match(l):
                     hash_value, str_value = int(m.group(1), 16), m.group(2)
                     lkup[hash_value] = str_value
         _event_ctx.lkup_hash_to_external_string_value.update(lkup)
@@ -444,13 +444,12 @@ def hash_string(s, is_short_hash=False):
     if not is_short_hash:
         h = 14695981039346656037
         for c in s: h = ((h^ord(c))*1099511628211)&0xFFFFFFFFFFFFFFFF
-        if h==0: h = 1 # Special case for our application (0 is reserved internally)
-        return h
     else:
         h = 2166136261
         for c in s: h = ((h^ord(c))*16777619)&0xFFFFFFFF
-        if h==0: h = 1 # Special case for our application (0 is reserved internally)
-        return h
+
+    if h==0: h = 1 # Special case for our application (0 is reserved internally)
+    return h
 
 
 
@@ -479,7 +478,12 @@ def program_cli(command_str, timeout_sec=5.):
     If there is no answer before the timeout expires, a ConnectionError exception is raised.
     The output is a tuple (status, text). A null status means success, else an error occurs and the text provides some explanation.
     """
-    return _remote_call(lambda x=command_str: palanteer_scripting._cextension.send_cli_request(x), " when calling command '%s'" % command_str)
+    return _remote_call(
+        lambda x=command_str: palanteer_scripting._cextension.send_cli_request(
+            x
+        ),
+        f" when calling command '{command_str}'",
+    )
 
 
 def program_set_freeze_mode(state):
@@ -495,12 +499,12 @@ def program_set_freeze_mode(state):
 def program_get_frozen_threads():
     """Returns the list of currently frozen threads."""
     global _event_ctx
-    frozen_threads = []
-
     _event_ctx.lock.acquire()
-    for h,bit in _event_ctx.lkup_hash_to_thread_id.items():
-        if (1<<bit)&_event_ctx.frozen_thread_bitmap:
-            frozen_threads.append(_event_ctx.lkup_hash_to_string_value[h])
+    frozen_threads = [
+        _event_ctx.lkup_hash_to_string_value[h]
+        for h, bit in _event_ctx.lkup_hash_to_thread_id.items()
+        if (1 << bit) & _event_ctx.frozen_thread_bitmap
+    ]
     _event_ctx.lock.release()
     return frozen_threads
 
@@ -552,8 +556,8 @@ def program_step_continue(thread_names, timeout_sec=1.):
     thread_bitmap = 0
     for t,h in hashed_thread_names:
         bit = _event_ctx.lkup_hash_to_thread_id.get(h, None)
-        if bit==None:
-            raise UnknownThreadError("The thread '%s' is unknown" % t)
+        if bit is None:
+            raise UnknownThreadError(f"The thread '{t}' is unknown")
         thread_bitmap |= (1<<bit)
     _event_ctx.frozen_thread_bitmap_change = 0  # Reset the changes
     _event_ctx.lock.release()
@@ -602,7 +606,7 @@ def process_launch(program_path, args=[], record_filename="", pass_first_freeze_
     if not record_filename:
         record_filename = ""
     if record_filename and not record_filename.endswith(".plt"):
-        record_filename = record_filename + ".plt"
+        record_filename = f"{record_filename}.plt"
     palanteer_scripting._cextension.set_record_filename(record_filename)
 
     # Manage the synchronization freeze point
@@ -658,7 +662,7 @@ def process_is_running():
     if not _program_ctx.process:
         return False
     _program_ctx.process.poll()  # Query the process state
-    return (_program_ctx.process.returncode==None)
+    return _program_ctx.process.returncode is None
 
 
 def process_get_returncode():
@@ -708,19 +712,13 @@ def process_stop():
     if not _program_ctx.process:
         return
 
-    # Graceful stop: call custom command to quit, if any
-    if _program_ctx.cli_to_quit:
-        try:
+    try:
+        if _program_ctx.cli_to_quit:
             answer = program_cli(_program_ctx.cli_to_quit)
-        except Exception:
-            pass
-    else:
-        # A bit less graceful stop: OS terminate signal
-        try:
+        else:
             _program_ctx.process.terminate()
-        except Exception:
-            pass
-
+    except Exception:
+        pass
     # Ensure that the process is really stopped
     try:
         _program_ctx.process.wait(timeout=0.5)
@@ -758,7 +756,7 @@ def data_configure_events(specs):
     if type(specs)!=type([]):  # Handle the single spec case
         specs = [specs]
 
-    for specId, spec in enumerate(specs):
+    for spec in specs:
         palanteer_scripting._cextension.add_spec(spec.threadName, spec.parentSpec, spec.elemSpec)
         _event_ctx.specs.append(spec)
 
@@ -797,9 +795,13 @@ def data_collect_events(wanted=[], unwanted=[], frozen_threads=[], max_event_qty
         _event_ctx.wake_from_events.clear()
 
         # Check the exit conditions
-        if exit_loop_count==None and max_event_qty and len(events)>=max_event_qty:
+        if (
+            exit_loop_count is None
+            and max_event_qty
+            and len(events) >= max_event_qty
+        ):
             exit_loop_count = _event_ctx.collection_ticks  # Exit without any additional tick
-        if exit_loop_count==None and frozen_threads:
+        if exit_loop_count is None and frozen_threads:
             thread_bitmap, areAllThreadsKnown = 0, True
             for t in frozen_threads:
                 bit = _event_ctx.lkup_hash_to_thread_id.get(hash_string(t, _event_ctx.is_short_hash), None)
@@ -809,18 +811,18 @@ def data_collect_events(wanted=[], unwanted=[], frozen_threads=[], max_event_qty
                     areAllThreadsKnown = False
             if areAllThreadsKnown and (_event_ctx.frozen_thread_bitmap&thread_bitmap)==thread_bitmap:
                 exit_loop_count = _event_ctx.collection_ticks+2  # +2 ticks for the double bank collection mechanism
-        if exit_loop_count==None and wanted:
+        if exit_loop_count is None and wanted:
             for e in new_events:
                 if e.path[-1] in wanted:
                     wanted.remove(e.path[-1])
             if not wanted:  # All wanted are found, so exit without any additional tick
                 exit_loop_count = _event_ctx.collection_ticks
-        if exit_loop_count==None and unwanted:
+        if exit_loop_count is None and unwanted:
             for e in new_events:
                 if e.path[-1] in unwanted:
                     exit_loop_count = _event_ctx.collection_ticks  # One unwanted is enough to exit without additional ticks
                     break
-        if exit_loop_count==None and not process_is_running():
+        if exit_loop_count is None and not process_is_running():
             exit_loop_count = _event_ctx.collection_ticks+2  # +2 ticks for the double bank collection mechanism
 
         # End the iteration
@@ -923,7 +925,7 @@ def debug_print_known_threads(output_file=sys.stdout):
     thread_names = data_get_known_threads()
     print("Known threads (%d):" % len(thread_names), file=output_file)
     for t in thread_names:
-        print("  - %s" % t, file=output_file)
+        print(f"  - {t}", file=output_file)
 
 
 def debug_print_known_event_kinds(output_file=sys.stdout):
@@ -933,7 +935,11 @@ def debug_print_known_event_kinds(output_file=sys.stdout):
     print("Known event kinds (%d):" % len(event_kinds), file=output_file)
     event_kinds.sort(key=lambda x: (x[2].lower(), x[1].lower(), x[0]))
     for path, kind, thread_name in event_kinds:
-        print("  - %-11s %-24s : %s" % ("[%s]" % kind, thread_name, "/".join(path)), file=output_file)
+        print(
+            "  - %-11s %-24s : %s"
+            % (f"[{kind}]", thread_name, "/".join(path)),
+            file=output_file,
+        )
 
 
 def debug_print_known_clis(output_file=sys.stdout):

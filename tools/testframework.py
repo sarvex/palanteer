@@ -136,8 +136,10 @@ def CHECK(status, msg, *args):
     else:
         text = ["%6.3f)     %sFAILED%s checking '%s' at [%s:%d]" % (time.time()-builtins.test_ctx.time_origin,
                                                                    builtins.test_ctx.RED, builtins.test_ctx.NORMAL, msg, caller.filename, caller.lineno)]
-        for detail in args:
-            text.append("%s%s%s" % (builtins.test_ctx.DWHITE, str(detail), builtins.test_ctx.NORMAL))
+        text.extend(
+            f"{builtins.test_ctx.DWHITE}{str(detail)}{builtins.test_ctx.NORMAL}"
+            for detail in args
+        )
         if builtins.test_ctx.is_verbose:
             print("\n".join(text))
         else:
@@ -149,7 +151,7 @@ def CHECK(status, msg, *args):
 # name : name of the KPI
 # value: value of the KPI
 def KPI(name, value):
-    LOG("New Key Performance Indicator: '%s'=%s" % (name, value))
+    LOG(f"New Key Performance Indicator: '{name}'={value}")
     builtins.test_ctx.kpi[name] = value
 
 
@@ -208,19 +210,19 @@ def main(argv):
         elif argv[i].lower() in ["-f", "/f"]:
             doStopAtFirstFail = True
         elif argv[i].lower() in ["-s", "/s"] and i + 1<len(argv):
-            i = i + 1
+            i += 1
             infilter_suite.append(argv[i].lower())
         elif argv[i].lower() in ["-ns", "/ns"] and i + 1<len(argv):
-            i = i + 1
+            i += 1
             outfilter_suite.append(argv[i].lower())
         elif argv[i][0]=="-":
             doPrintUsage = True  # Unknown option
-            print("Unknown option '%s'" % argv[i], file=sys.stderr)
+            print(f"Unknown option '{argv[i]}'", file=sys.stderr)
         else:
             if folder:
                 doPrintUsage = True  # Only one folder parameter
             folder = argv[i]
-        i = i + 1
+        i += 1
 
     if noColor:
         builtins.test_ctx.RED, builtins.test_ctx.GREEN, builtins.test_ctx.CYAN, builtins.test_ctx.YELLOW, \
@@ -254,7 +256,7 @@ def main(argv):
     sys.path.insert(0, folder)
 
     test_func_list, prepare_func_per_suite, clean_func_per_suite = [], {}, {}
-    for f in glob.glob("%s/*.py" % folder):
+    for f in glob.glob(f"{folder}/*.py"):
         # Load the module
         moduleName = os.path.basename(f)[:-3]
         testModule = __import__(moduleName)
@@ -283,8 +285,9 @@ def main(argv):
     if doList:
         print("List of tests (%d):\n===================" % len(test_func_list))
         for t in test_func_list:
-            print("%s%s%s%s:   %s%s%s" % (builtins.test_ctx.PURPLE, t.suite, builtins.test_ctx.NORMAL, " "*(suite_max_len-len(t.suite)),
-                                          builtins.test_ctx.CYAN, t.__doc__, builtins.test_ctx.NORMAL))
+            print(
+                f'{builtins.test_ctx.PURPLE}{t.suite}{builtins.test_ctx.NORMAL}{" " * (suite_max_len - len(t.suite))}:   {builtins.test_ctx.CYAN}{t.__doc__}{builtins.test_ctx.NORMAL}'
+            )
         sys.exit(0)
 
     # Run the tests
@@ -299,7 +302,7 @@ def main(argv):
     for t in test_func_list:
 
         # Display test suite title
-        if last_test==None or t.suite!=last_test.suite:
+        if last_test is None or t.suite != last_test.suite:
 
             # Clean the tests for the previous suite
             if last_test and last_test.suite in clean_func_per_suite:
@@ -339,8 +342,9 @@ def main(argv):
         results[-1][2] += 1                    # test count
         results[-1][3] += duration_sec         # time spent
         if builtins.test_ctx.is_verbose:
-            print("   %s=> %s %s%s" % (builtins.test_ctx.GREEN if success else builtins.test_ctx.RED,
-                                       t.__doc__, "OK" if success else "FAILED", builtins.test_ctx.NORMAL))
+            print(
+                f'   {builtins.test_ctx.GREEN if success else builtins.test_ctx.RED}=> {t.__doc__} {"OK" if success else "FAILED"}{builtins.test_ctx.NORMAL}'
+            )
         else:
             print("%s[%s] %s(%d check%s in %.1f s)%s" % (builtins.test_ctx.GREEN if success else builtins.test_ctx.RED, "OK" if success else "FAILED",
                                                          builtins.test_ctx.DWHITE, builtins.test_ctx.current_test_check_qty,
@@ -362,7 +366,14 @@ def main(argv):
     kpi_max_len   = max([0]+[len(k) for k in builtins.test_ctx.kpi])
     name_max_len  = max(suite_max_len, kpi_max_len)
     title_bar_len = name_max_len + 31 + 2
-    print("\nFinal results (%d tests in %.1f s):\n%s" % (sum([r[2] for r in results]), sum([r[3] for r in results]), "="*title_bar_len))
+    print(
+        "\nFinal results (%d tests in %.1f s):\n%s"
+        % (
+            sum(r[2] for r in results),
+            sum(r[3] for r in results),
+            "=" * title_bar_len,
+        )
+    )
     global_success = True
     for r in results:
         global_success = global_success and r[1]==r[2]

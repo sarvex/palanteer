@@ -49,8 +49,10 @@ def main(argv):
         print("It takes one argument, the 'external string' file lookup, replaces detected hashed strings from stdin and outputs the decoded version in stdout.", file=sys.stderr)
         print("\n  Syntax: %s <string file lookup>\n" % argv[0], file=sys.stderr)
         print("Typical usage is decoding assertion messages.")
-        print("Example: cat 'pointer @@894920843EBC824C@@' | %s myHashedStringLookup" % argv[0])
-        print("Example: xclip -o | %s myHashedStringLookup" % argv[0])
+        print(
+            f"Example: cat 'pointer @@894920843EBC824C@@' | {argv[0]} myHashedStringLookup"
+        )
+        print(f"Example: xclip -o | {argv[0]} myHashedStringLookup")
         sys.exit(1)
 
     # Load the lookup
@@ -58,19 +60,15 @@ def main(argv):
     lkup = { }
     MATCH_LKUP_ENTRY = re.compile("@@([0-9A-F]{16})@@(.*)")
     for l in lines:
-        m = MATCH_LKUP_ENTRY.match(l)
-        if m: lkup[m.group(1)] = m.group(2)
-
+        if m := MATCH_LKUP_ENTRY.match(l):
+            lkup[m[1]] = m[2]
     # Read stdin, replace hash string patterns and dump on stdout
     MATCH_INPUT_ENTRY = re.compile("(.*?)@@([0-9A-F]{16})@@(.*)$")
     for l in sys.stdin.readlines():
         outLine = [ ]
-        m = MATCH_INPUT_ENTRY.match(l)
-        while m:
-            outLine.append(m.group(1))
-            outLine.append(lkup.get(m.group(2), m.group(2)))
-            l = m.group(3)
-            m = MATCH_INPUT_ENTRY.match(l)
+        while m := MATCH_INPUT_ENTRY.match(l):
+            outLine.extend((m[1], lkup.get(m[2], m[2])))
+            l = m[3]
         outLine.append(l)
         print("".join(outLine))
 

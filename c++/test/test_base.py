@@ -31,7 +31,10 @@ def prepare_build():
         try:
             subprocess.run(t, universal_newlines=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except FileNotFoundError:
-            print("ERROR: '%s' is not found. This tool is required to pass the tests." % t[0], file=sys.stderr)
+            print(
+                f"ERROR: '{t[0]}' is not found. This tool is required to pass the tests.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     # Create the working directory and make it the current directory
@@ -61,7 +64,7 @@ def run_cmd(cmd_and_args_list):
     try:
         res.check_returncode()
     except subprocess.CalledProcessError as e:
-        print("Error when calling %s" % " ".join(cmd_and_args_list), file=sys.stderr)
+        print(f'Error when calling {" ".join(cmd_and_args_list)}', file=sys.stderr)
         print("STDERR:\n%s" % res.stderr)
         print("STDOUT:\n%s" % res.stdout)
         raise
@@ -69,19 +72,23 @@ def run_cmd(cmd_and_args_list):
 
 
 def build_target(target_name, string_flags, compilation_flags=[]):
-    LOG("Building '%s' with flags %s %s" % (target_name, string_flags, " ".join(compilation_flags)))
+    LOG(
+        f"""Building '{target_name}' with flags {string_flags} {" ".join(compilation_flags)}"""
+    )
 
     # Ensure previous process is stopped
     palanteer_scripting.process_stop()
 
     build_type  = "Debug"
     rootProject = os.path.join("..", "..", "..")
-    cmake_flags = ['-DCUSTOM_FLAGS=%s' % " ".join(["-D%s" % f for f in string_flags.split()]+compilation_flags)]
-    cmake_flags.append("-DCMAKE_BUILD_TYPE=%s" % build_type)
+    cmake_flags = [
+        f'-DCUSTOM_FLAGS={" ".join([f"-D{f}" for f in string_flags.split()] + compilation_flags)}',
+        f"-DCMAKE_BUILD_TYPE={build_type}",
+    ]
     if sys.platform=="win32":
         cmake_flags.extend(["-G", "NMake Makefiles"])
     try:
-        run_cmd(["cmake", "--cmake-clean-cache", "%s" % rootProject]+cmake_flags)
+        run_cmd(["cmake", "--cmake-clean-cache", f"{rootProject}"] + cmake_flags)
     except subprocess.CalledProcessError as e:
         CHECK(False, "ERROR while configuring with cmake:", e.stderr)
         return False
@@ -98,13 +105,23 @@ def build_target(target_name, string_flags, compilation_flags=[]):
         endDate = time.time()
         # Display
         if sys.platform=="win32":
-            progPath = (glob.glob("bin/%s.exe" % target_name)+glob.glob("bin/%s.dll" % target_name[3:]))[0]
+            progPath = (
+                glob.glob(f"bin/{target_name}.exe")
+                + glob.glob(f"bin/{target_name[3:]}.dll")
+            )[0]
         else:
-            progPath = (glob.glob("bin/%s" % target_name)+glob.glob("lib/%s.so" % target_name))[0]
+            progPath = (
+                glob.glob(f"bin/{target_name}")
+                + glob.glob(f"lib/{target_name}.so")
+            )[0]
         progSize = os.stat(progPath).st_size
         CHECK(True, "built in %.2f s, size %6d B" % (endDate-startDate, progSize))
     except subprocess.CalledProcessError as e:
-        CHECK(False, "build error:", "\n".join("   %s" % l for l in e.stderr.split("\n")[:15]))
+        CHECK(
+            False,
+            "build error:",
+            "\n".join(f"   {l}" for l in e.stderr.split("\n")[:15]),
+        )
         return False
 
     return True

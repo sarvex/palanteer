@@ -172,7 +172,7 @@ def test_usepl1_saturated_string_buffer():
     events = data_collect_events(wanted="test_marker")
     CHECK(status==0, "The marker has been received successfully", status, answer)
 
-    status, answer = program_cli("test::marker msg=[[%s]]" % ("a"*130))  # Too long a string for the buffer
+    status, answer = program_cli(f'test::marker msg=[[{"a" * 130}]]')
     events = data_collect_events(wanted="test_marker", timeout_sec=1.)
     CHECK(not process_is_running(), "The process stopped as expected due to a failed assertion");
     process_stop()

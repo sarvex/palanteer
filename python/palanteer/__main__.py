@@ -39,7 +39,7 @@ if __name__ == "__main__":
     with_functions, with_exceptions, with_memory, with_gc, with_c_calls = True, True, True, True, True
     while idx<len(sys.argv):
         if not sys.argv[idx].startswith("-"): break
-        if   sys.argv[idx]=="-nf": with_functions  = False
+        if sys.argv[idx]=="-nf": with_functions  = False
         elif sys.argv[idx]=="-ne": with_exceptions = False
         elif sys.argv[idx]=="-nm": with_memory     = False
         elif sys.argv[idx]=="-ng": with_gc         = False
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             server_port = sys.argv[idx+1]
             idx += 1
         else:
-            print("Error: unknown option '%s'" % sys.argv[idx], file=sys.stderr)
+            print(f"Error: unknown option '{sys.argv[idx]}'", file=sys.stderr)
             do_display_usage = True
             break
         idx += 1
